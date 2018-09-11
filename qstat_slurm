@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+
+import argparse
+parser = argparse.ArgumentParser(description="fake qstat for displaying more info")
+parser.add_argument("-n","--nodes",action="store_true",help="display the nodes on which job is running")
+parser.add_argument("-a","--active",action="store_true",help="display only running and queing jobs")
+parser.add_argument("-A","--all",action="store_true",help="display all running and queing jobs")
+parser.add_argument("-t","--time",action="store_true",help="display amount of time given to job")
+#parser.add_argument("-t","--time",action="store_true",help="display amount of time given to job")
+parser.add_argument("-q","--queue",action="store_true",help="display which queue it is on")
+parser.add_argument("-m","--memory",action="store_true",help="display how many memory asked and in use")
+args=parser.parse_args()
+
+import subprocess
+#f = subprocess.check_output(['qstat','-f','-u','jlt84'])
+f = subprocess.check_output(['qstat','-f'])
+qinfo = f.split('\n\n')[:-1]
+if not 'jlt84' in f and not args.all:
+    print "no jobs"
+    import sys
+    sys.exit(1)
+
+if args.nodes:
+    print "job_id   walltime state cpus  job_name                                                      node number(s)"
+    print "-------  -------- ----- ----  ------------------------------------------------------------  --------------"
+else:
+    print "Job_Id   walltime state cpus  Job_Name"
+    print "-------  -------- ----- ----  --------------------------"
+
+def getinfo(job):
+    jinfo=dict()
+    lines=job.split('\n')
+
+    # JobID parsing
+    line1= lines[0].split(':\t')
+    jinfo[line1[0]]=line1[1]
+
+    # other lines
+    for line in lines[1:]:
+        stripped = line.strip('\t ').split(' = ')
+        jinfo[stripped[0]]=stripped[1]
+    #for i in jinfo.items(): print i
+    return jinfo
+
+from datetime import datetime
+for job in qinfo:
+    jobinfo = getinfo(job)
+    if not jobinfo['Account_Name']=='jlt84' and not args.all:
+        continue
+    print jobinfo['Job Id'],
+
+    # here get the timing as a difference between mtime and qtime
+    try:
+        format = '%a %b %d %H:%M:%S %Y'
+        tm = datetime.strptime(jobinfo['mtime'], format)
+        now = datetime.strftime(datetime.now(), format)
+        tq = datetime.strptime(now, format)
+        tdelta = tq-tm
+        s = tdelta.seconds
+        hours, remainder = divmod(s, 3600)
+        hours += 24 * tdelta.days
+        minutes, seconds = divmod(remainder, 60)
+        print " {:02d}:{:02d}:{:02d} ".format(hours, minutes, seconds),
+    except Exception:
+        print "         ",
+        raise
+
+    print "  {}  ".format(jobinfo['job_state']),
+
+    print " {}  ".format(jobinfo['Resource_List.ncpus']),
+
+    print " {}".format(jobinfo['Job_Name']),
+
+    if args.time:
+        print " {} ".format(jobinfo['Resource_List.walltime']),
+
+    print
