@@ -1,0 +1,55 @@
+#!/bin/env python
+import os
+import argparse
+import xml.etree.ElementTree as ET
+parser = argparse.ArgumentParser(description="fake qstat for displaying more info")
+parser.add_argument("-n","--nodes",action="store_true",help="display the nodes on which job is running")
+parser.add_argument("-a","--active",action="store_true",help="display only running and queing jobs")
+parser.add_argument("-t","--time",action="store_true",help="display amount of time given to job")
+#parser.add_argument("-t","--time",action="store_true",help="display amount of time given to job")
+parser.add_argument("-q","--queue",action="store_true",help="display which queue it is on")
+parser.add_argument("-m","--memory",action="store_true",help="display how many memory asked and in use")
+args=parser.parse_args()
+f = os.popen('qstat -x')
+try:
+    tree = ET.parse(f)
+except ET.ParseError:
+    raise SystemExit("There are no jobs")
+root = tree.getroot()
+if args.nodes:
+ print "job_id     walltime state cpus-per-nodes  job_name                                                      node number(s)"
+ print "--------   -------- ----- --------------  ------------------------------------------------------------  --------------"
+else:
+ print "Job_Id     walltime state     n_nodes     Job_Name"
+ print "--------   -------- ----- --------------- --------------------------"
+for job in root:
+    if not(args.active and job.find('job_state').text=='C'):
+        print job.find('Job_Id').text.split('.')[0], " ",
+        try:
+            print job.find('resources_used').find('walltime').text, " ",
+        except AttributeError:
+            print "          ",
+        print job.find('job_state').text, " ",
+	try:
+            print ('{0:14} '.format(job.find('Resource_List').find('nodes').text)),
+	except AttributeError:
+            print "none           ",
+        print ('{0:60} '.format(job.find('Job_Name').text)),
+        if args.queue:
+            print job.find('queue').text, " ",
+        if args.time:
+            print job.find('Resource_List').find('walltime').text, " ",
+	if args.memory:
+            try:
+                print job.find('Resource_List').find('mem').text, " ",
+                print job.find('resources_used').find('mem').text, " ",
+            except AttributeError:
+                pass
+        if args.nodes:
+            try:
+                print job.find("exec_host").text
+            except AttributeError:
+                print "\n",
+                pass
+        else:
+            print "\n",
