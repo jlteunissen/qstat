@@ -1,0 +1,46 @@
+#!/bin/python
+
+import subprocess
+import time
+
+def qsta():
+    try:
+        p1 = subprocess.check_output(['qsta'])
+    except subprocess.CalledProcessError,e:
+        print "subprocess.CalledProcessError"
+        print repr(e)
+        p1 = False
+    return p1
+
+starttime = 5.0
+if True:
+    while True:
+        qout = qsta()
+        if not qout:
+            time.sleep(5)
+        else:
+            for job in qout.split('\n')[-3:]:
+                print job
+        time.sleep(int(starttime))
+        starttime *= 1.2
+        print "-----"*10, int(starttime)
+else:
+    import curses
+    stdscr = curses.initscr()
+    curses.cbreak()
+    stdscr.keypad(1)
+
+    key = ''
+    while True:
+        key=stdscr.getch()
+        if key==ord('q'): break
+        print "-----"*10, int(starttime)
+        qout = qsta()
+        if not qout:
+            time.sleep(5)
+        else:
+            for job in qout.split('\n')[-3:]:
+                print job
+        time.sleep(int(starttime))
+        starttime *= 1.2
+    curses.endwin()
