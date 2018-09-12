@@ -1,0 +1,12 @@
+#!/bin/bash
+# script that does many of the operation that you want in range $1 to $2
+if [ $# -eq 2 ]; then
+   ((dif=$2-$1+1))
+   read -p "are you sure deleting $dif jobs with codes from $1 to $2?"
+   for i in $(seq $1 $2); do
+      echo $i
+      qdel $i
+   done
+else
+   echo "you have to give two arguments"
+fi
