@@ -1,0 +1,88 @@
+#!/usr/bin/python3
+
+import sys
+import argparse
+import subprocess
+
+parser = argparse.ArgumentParser(description="fake qstat for displaying more info")
+parser.add_argument("-n","--nodes",action="store_true",help="display the nodes on which job is running")
+parser.add_argument("-a","--active",action="store_true",help="display only running and queing jobs")
+parser.add_argument("-t","--time",action="store_true",help="display amount of time given to job")
+parser.add_argument("-q","--queue",action="store_true",help="display which queue it is on")
+parser.add_argument("-m","--memory",action="store_true",help="display how many memory asked and in use")
+args=parser.parse_args()
+
+f = subprocess.check_output(['qstat','-f']).decode(sys.stdout.encoding)
+qinfo = f.split('\n\n')[:-1]
+
+if not qinfo:
+    print("no jobs")
+    sys.exit(0)
+
+if args.nodes:
+    print(" job_id  walltime S node cpus job_name                                                      node number(s)")
+    print("-------- -------- - ---- ---- ------------------------------------------------------------  --------------")
+else:
+    if args.time:
+        print(" Job_Id  walltime requTime S node cpus Job_Name")
+        print("-------- -------- -------- - ---- ---- --------------------------")
+    else:
+        print(" Job_Id  walltime S node cpus Job_Name")
+        print("-------- -------- - ---- ---- --------------------------")
+
+def getinfo(job):
+    jinfo=dict()
+    lines=job.split('\n')
+
+    # JobID parsing
+    if not ':' in lines[0]:
+        return None
+    line1= lines[0].split(':')
+    jinfo[line1[0]]=line1[1].strip()
+
+    # other lines
+    for line in lines[1:]:
+        stripped = line.strip('\t ').split(' = ')
+        jinfo[stripped[0]]=stripped[1]
+    #for i in jinfo.items(): print i
+    #print(jinfo)
+    return jinfo
+
+from datetime import datetime
+for job in qinfo:
+    jobinfo = getinfo(job)
+    if not jobinfo:
+        continue
+
+    if args.active and jobinfo['Job_State']=='F':
+        continue
+
+    print(jobinfo['Job Id'], end=' ')
+
+    # here get the timing as a difference between mtime and qtime
+    try:
+        print("{:>8s}".format(jobinfo['Walltime']), end=' ')
+    except KeyError:
+        print("         ", end=' ')
+        raise
+    if args.time:
+        print("{}".format(jobinfo['Requested_Time']), end=' ')
+
+    print("{}".format(jobinfo['Job_State']), end=' ')
+
+    print("{:>4s}".format(jobinfo['Requested_Nodes']), end=' ')
+
+    print("{:>4s}".format(jobinfo['Requested_Cpus']), end=' ')
+
+    print("{}".format(jobinfo['Job_Name']), end=' ')
+
+    if args.nodes:
+       try:
+           print("{}".format(jobinfo['Nodes']), end=' ')
+       except KeyError:
+           pass
+
+    if args.memory:
+        print("{}".format(jobinfo['Requested_Memory']), end=' ')
+
+    print()
